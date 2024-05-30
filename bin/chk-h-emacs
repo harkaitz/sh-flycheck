@@ -1,0 +1,78 @@
+#!/bin/sh -e
+##:
+#h: Usage: chk-h-emacs [-D EMACS_DIR] OPTS...
+#h:
+#h: Install "chk" in GNU Emacs's home directory and flycheck
+#h: support.
+#h:
+#h:   -V : Show configuration.
+#h:   -i : Install "chk".
+#h:   -u : Uninstall "chk".
+#h:
+#h: Environment variables: EMACS_DIR, HOME, USERPROFILE
+##:
+chk_h_emacs() {
+    local OPTIND optopt ops=
+    
+    ## Parse command line arguments.
+    while getopts "VD:iu" optopt; do
+        ops="${ops}${optopt}"
+        case $optopt in
+            V)  chk_h_emacs_show_variables; return 0;;
+            D)  EMACS_DIR="${OPTARG}";;
+            \?) return 1;;
+        esac
+    done
+    shift $(( $OPTIND - 1 ))
+    
+    ## Operations.
+    case "${ops}" in *u*) chk_h_emacs_uninstall ;; esac
+    case "${ops}" in *i*) chk_h_emacs_install   ;; esac
+}
+chk_h_emacs_show_variables() {
+    echo "EMACS_DIR: EMACS_DIR"
+}
+chk_h_emacs_calc_variables() {
+    EMACS_DIR="${HOME:-${USERPROFILE:-/home/$(whoami)}}/.emacs.d"
+}
+## -------------------------------------------------------------------
+chk_h_emacs_install() {
+    chk_h_emacs_uninstall
+    chk="$(which chk)"; test -n "$chk"
+    cat >> "${EMACS_DIR}/init.el" <<-EOF
+	;; -- CHK --
+	(load-library "flycheck")
+	(flycheck-define-checker
+	      gen-flycheck-c "C checker."
+	      :command ("sh" "-e" "${chk}" source-inplace)
+	      :error-patterns
+	      ((warning line-start (file-name) ":" line ":" column ": warning: " (message) line-end)
+	       (error   line-start (file-name) ":" line ":" column ": error: "   (message) line-end))                     
+	      :modes (c-mode))
+	  (flycheck-define-checker
+	      gen-flycheck-cxx "C++ checker."
+	      :command ("sh" "-e" "${chk}" source-inplace)
+	      :error-patterns
+	      ((warning line-start (file-name) ":" line ":" column ": warning: " (message) line-end)
+	       (error   line-start (file-name) ":" line ":" column ": error: "   (message) line-end))                     
+	      :modes (c++-mode))
+	(add-to-list 'flycheck-checkers 'gen-flycheck-c)
+	(add-to-list 'flycheck-checkers 'gen-flycheck-cxx)
+	;; -- CHK --
+	EOF
+}
+chk_h_emacs_uninstall() {
+    if test ! -f "${EMACS_DIR}/init.el"; then
+        echo >&2 "error: ${EMACS_DIR}/init.el: File not found."
+        return 1
+    fi
+    sed -i '/--CHK--/,/--CHK--/d' "${EMACS_DIR}/init.el"
+}
+## -------------------------------------------------------------------
+chk_h_emacs_calc_variables
+if test @"${SCRNAME:-$(basename "$0")}" = @"chk-h-emacs"; then
+    case "${1}" in
+        ''|-h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0";;
+        *)            chk_h_emacs "$@"; exit 0;;
+    esac
+fi

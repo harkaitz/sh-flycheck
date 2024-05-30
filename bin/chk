@@ -1,0 +1,93 @@
+#!/bin/sh -e
+##:
+#h: Usage: chk FILES...
+#h:
+#h: Check file correctness of source files. It applies the following
+#h: inconsistencies:
+#h:
+#h:   1. For "h" files it searches "c cpp cc cxx ..." LANGs.
+#h:   2. For "hh/hpp/hxx" files it searches "cpp cc cxx ... c".
+#h:
+#h: Files:
+#h:
+#h:   1. ~/.commands.d/LANG   : File with "SRCDIR;WRKDIR;ENV;COMMAND".
+#h:   2. ~/.environment.d/ENV : File with export commands.
+#h:
+#h: You can create the files above with "make-h-tool(1)".
+##:
+chk() {
+    local file cvs dir sufs suf wdir cmd line ret rcode="0"
+    for file in "$@"; do
+        
+        ## Normalize filename and get suffix.
+        sufs="${file##*.}"
+        file="$(readlink -f "${file}")"
+        dir="$(dirname "${file}")"
+        
+        ## For headers.
+        case "${sufs}" in
+            h)          sufs="c cpp cc cxx";;
+            hh|hpp|hxx) sufs="cpp cc cxx c";;
+        esac
+        
+        ## Search a line in commands.
+        line=
+        for suf in ${sufs}; do
+            cvs="${HOME}/.commands.d/${suf}"
+            if test -f "${cvs}"; then
+                line="$(awk -v d="${dir}" -F ';' '$1 == d { print; exit(0); }' "${cvs}")"
+                if test -n "${line}"; then
+                    break
+                fi
+            fi
+        done
+        if test ! -n "${line}"; then
+            echo >&2 "Skipping ${file} ..."
+            continue
+        fi
+        
+        ## Get environment, working directory and command.
+        wdir="$(echo "${line}" | cut -d ';' -f 2)"
+        envm="$(echo "${line}" | cut -d ';' -f 3)"
+        cmd="$( echo "${line}" | cut -d ';' -f 4)"
+        if test -f "${HOME}/.environment.d/${envm}"; then
+            envm="${HOME}/.environment.d/${envm}"
+        else
+            envm=""
+        fi
+        tmp="${TEMP:-/tmp}/chk.tmp"
+        
+        ## Execute in a separate shell.
+        echo "make: Entering directory '${wdir}'"
+        set +e
+        sh -e -c "
+            ${envm:+. '${envm}'}
+            cd '${wdir}'
+            echo ${cmd}
+            ${cmd}
+        " -- "${file}" > "${tmp}" 2>&1
+        ret="$?"
+        set -e
+        sed '
+            s|\\|/|g
+            s|fatal error|error|g
+            s|^\([^()]*\)(\([0-9][0-9]*\)) *: \(.*\)|\1:\2: \3|
+            s|: error \(C[0-9]*\):|:0: error: \1 |
+        ' "${tmp}" >&2
+        echo "make: Leaving directory '${wdir}'"
+        
+        ## Set return code.
+        if test ! @"${ret}" = @"0"; then
+            rcode="1"
+        fi
+        
+    done
+    
+    return "${rcode}"
+}
+if test @"${SCRNAME:-$(basename "$0")}" = @"chk"; then
+    case "${1}" in
+        ''|-h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0";;
+        *)            chk "$@"; exit 0;;
+    esac
+fi
