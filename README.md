@@ -22,18 +22,33 @@ chk
     
     You can create the files above with "make-h-tool(1)".
 
+chk-flags
+
+    Usage: chk-flags FILES... DIRS...
+    
+    Read ~/.commands.d/LANG files and print the defines and includes
+    required to build FILES or all files in DIRS.
+
 chk-h-emacs
 
-    Usage: chk-h-emacs [-D EMACS_DIR] OPTS...
+    Usage: chk-h-emacs OPTS...
     
     Install "chk" in GNU Emacs's home directory and flycheck
     support.
     
-      -V : Show configuration.
-      -i : Install "chk".
-      -u : Uninstall "chk".
+      -V                : Show configuration.
+      -i [-D EMACS_DIR] : Install "chk".
+      -u [-D EMACS_DIR] : Uninstall "chk".
+      -S FILE|DIRS...   : Update "~/.semantic.el".
     
     Environment variables: EMACS_DIR, HOME, USERPROFILE
+
+flytags
+
+    Usage: flytags -V
+    
+    List all *.{cpp,h,hpp,c,go,py} files in "FILES" and search tags in
+    them and place in "TAGS".
 
 make-h-tool
 

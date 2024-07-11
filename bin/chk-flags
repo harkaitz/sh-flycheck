@@ -1,0 +1,62 @@
+#!/bin/sh -e
+##:
+#h: Usage: chk-flags FILES... DIRS...
+#h:
+#h: Read ~/.commands.d/LANG files and print the defines and includes
+#h: required to build FILES or all files in DIRS.
+##:
+chk_flags() {
+    local OPTIND optopt dir cmd pwd="$(pwd)"
+    chk_flags_get_wdirNcmd "$@" | while IFS=';' read -r dir cmd; do
+        cd "${dir}"
+        eval "chk_flags_extract_flags ${cmd}"
+        cd "${pwd}"
+    done | sort -u
+}
+## -----------------------------------------------------------------------------
+chk_flags_extract_flags() {
+    local a i d
+    for a in "$@"; do
+        i= d=
+        case "$a" in
+            /I*) i="${a#/I}" ;;
+            -I*) i="${a#-I}" ;;
+            /D*) d="${a#/D}" ;;
+            -D*) d="${a#-D}" ;;
+        esac
+        if test -n "${i}" && test -d "${i}"; then
+            printf 'I %s\n' "$(readlink -f "${i}")"
+        fi
+        if test -n "${d}"; then
+            printf 'D %s\n' "${d}"
+        fi
+    done
+}
+chk_flags_get_wdirNcmd() { # FILES... DIRS... -> WDIR;CMD
+    local dir csvs
+    for dir in "$@"; do
+        if test -d "${dir}"; then
+            dir="$(readlink -f "${dir}")"
+        else
+            dir="$(readlink -f "$(dirname "${dir}")")"
+        fi
+        csvs="$(chk_flags_get_csvs)"
+        if test -n "${csvs}"; then
+            sed -n '\|^'"${dir}"'[/\;\\]|s|.*\;\(.*\)\;.*\;\(.*\)|\1\;\2|p' ${csvs}
+        fi
+    done | sort -u
+}
+chk_flags_get_csvs() {
+    local suf csv
+    for suf in cpp cxx cc c; do
+        csv="${HOME}/.commands.d/${suf}"
+        test ! -f "${csv}" || echo "${csv}"
+    done
+}
+## -----------------------------------------------------------------------------
+if test @"${SCRNAME:-$(basename "$0")}" = @"chk-flags"; then
+    case "${1}" in
+        ''|-h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0";;
+        *)            chk_flags "$@"; exit 0;;
+    esac
+fi

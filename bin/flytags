@@ -1,0 +1,64 @@
+#!/bin/sh -e
+##:
+#h: Usage: flytags -V
+#h:
+#h: List all *.{cpp,h,hpp,c,go,py} files in "FILES" and search tags in
+#h: them and place in "TAGS".
+##:
+flytags() {
+    local OPTIND optopt
+    
+    ## Parse command line arguments.
+    while getopts "V" optopt; do
+        case $optopt in
+            V)  flytags_show_variables; return 0;;
+            \?) return 1;;
+        esac
+    done
+    shift $(( $OPTIND - 1 ))
+    
+    ## Update FILES.
+    echo >&2 "Updating FILES ..."
+    find . -type f             \
+         \(                    \
+         -iname '*.cpp' -or    \
+         -iname '*.h'   -or    \
+         -iname '*.hpp' -or    \
+         -iname '*.c'   -or    \
+         -iname '*.go'  -or    \
+         -iname '*.py'         \
+         \)                    \
+        | sed '\|/[Bb]uild/|d' \
+        | sort > FILES.tmp
+    mv FILES.tmp FILES
+    
+    ## Update TAGS.
+    if test ! -n "${CTAGS}"; then
+        echo >&2 "error: Can't find ctags program."
+        return 1
+    fi
+    echo >&2 "Updating TAGS ..."
+    "${CTAGS}" -e -L FILES
+}
+flytags_show_variables() {
+    echo "CTAGS : ${CTAGS}"
+}
+flytags_calc_variables() {
+    case "$(uname -s)" in
+        Windows_NT)
+            CTAGS="$(which 'C:/msys64/mingw64/bin/ctags.exe' || true)"
+            ;;
+        *)
+            
+            CTAGS="$(which ctags-exuberant ctags | head -n 1 || true)"
+            ;;
+    esac
+}
+## -------------------------------------------------------------------
+flytags_calc_variables
+if test @"$(basename "$0")" = @"flytags";then
+    case "${1}" in
+        -h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0" ;;
+        *)         flytags "$@"; exit 0;;
+    esac
+fi

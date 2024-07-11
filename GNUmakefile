@@ -22,4 +22,6 @@ install-sh:
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp bin/make-h-tool      $(DESTDIR)$(PREFIX)/bin
 	cp bin/chk              $(DESTDIR)$(PREFIX)/bin
+	cp bin/chk-flags        $(DESTDIR)$(PREFIX)/bin
+	cp bin/flytags          $(DESTDIR)$(PREFIX)/bin
 ## -- BLOCK:sh --

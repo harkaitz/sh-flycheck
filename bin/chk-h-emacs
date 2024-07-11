@@ -1,13 +1,14 @@
 #!/bin/sh -e
 ##:
-#h: Usage: chk-h-emacs [-D EMACS_DIR] OPTS...
+#h: Usage: chk-h-emacs OPTS...
 #h:
 #h: Install "chk" in GNU Emacs's home directory and flycheck
 #h: support.
 #h:
-#h:   -V : Show configuration.
-#h:   -i : Install "chk".
-#h:   -u : Uninstall "chk".
+#h:   -V                : Show configuration.
+#h:   -i [-D EMACS_DIR] : Install "chk".
+#h:   -u [-D EMACS_DIR] : Uninstall "chk".
+#h:   -S FILE|DIRS...   : Update "~/.semantic.el".
 #h:
 #h: Environment variables: EMACS_DIR, HOME, USERPROFILE
 ##:
@@ -15,7 +16,7 @@ chk_h_emacs() {
     local OPTIND optopt ops=
     
     ## Parse command line arguments.
-    while getopts "VD:iu" optopt; do
+    while getopts "VD:iuS" optopt; do
         ops="${ops}${optopt}"
         case $optopt in
             V)  chk_h_emacs_show_variables; return 0;;
@@ -26,8 +27,9 @@ chk_h_emacs() {
     shift $(( $OPTIND - 1 ))
     
     ## Operations.
-    case "${ops}" in *u*) chk_h_emacs_uninstall ;; esac
-    case "${ops}" in *i*) chk_h_emacs_install   ;; esac
+    case "${ops}" in *u*) chk_h_emacs_uninstall     ;; esac
+    case "${ops}" in *i*) chk_h_emacs_install       ;; esac
+    case "${ops}" in *S*) chk_h_emacs_semantic "$@" ;; esac
 }
 chk_h_emacs_show_variables() {
     echo "EMACS_DIR: EMACS_DIR"
@@ -35,6 +37,34 @@ chk_h_emacs_show_variables() {
 chk_h_emacs_calc_variables() {
     EMACS_DIR="${HOME:-${USERPROFILE:-/home/$(whoami)}}/.emacs.d"
 }
+## -------------------------------------------------------------------
+chk_h_emacs_semantic() {
+    #chk-flags "$@" > ~/.semantic.lst
+    cat <<-EOF
+	(semantic-reset-system-include 'c-mode)
+	(semantic-reset-system-include 'c++-mode)
+	EOF
+    while read -r c d; do
+        if test @"${c}" = @"I"; then
+            printf '(semantic-add-system-include "%s")\n' "${d}"
+        fi
+    done < ~/.semantic.lst
+    cat <<-EOF
+	(setq semantic-lex-c-preprocessor-symbol-map '(
+	EOF
+    while read -r c d; do
+        if test @"${c}" = @"D"; then
+            printf '        (%-20s . "%s")\n' \
+                   "$(chk_h_emacs_optopt "$d")" \
+                   "$(chk_h_emacs_optarg "$d")"
+        fi
+    done < ~/.semantic.lst
+    cat <<-EOF
+	))
+	EOF
+    
+}
+
 ## -------------------------------------------------------------------
 chk_h_emacs_install() {
     chk_h_emacs_uninstall
@@ -67,6 +97,15 @@ chk_h_emacs_uninstall() {
         return 1
     fi
     sed -i '/--CHK--/,/--CHK--/d' "${EMACS_DIR}/init.el"
+}
+## -------------------------------------------------------------------
+chk_h_emacs_optopt() {
+    local s="${2:-=}"
+    echo "$1" | sed -n 's|^\(-*[^'"$s"' ][^'"$s"' ]*\).*|\1|p'
+}
+chk_h_emacs_optarg() {
+    local s="${2:-=}"
+    echo "$1" | sed -n 's|^-*[^'"$s"'][^'"$s"']*'"$s"'||p' | sed 's|"|\\"|g'
 }
 ## -------------------------------------------------------------------
 chk_h_emacs_calc_variables
