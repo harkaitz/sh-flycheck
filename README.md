@@ -50,23 +50,6 @@ flytags
     List all *.{cpp,h,hpp,c,go,py} files in "FILES" and search tags in
     them and place in "TAGS".
 
-make-h-tool
-
-    Usage: make-h-tool { CMD ARGS... | MAKE-ARGS... }
-    
-    Perform a dry execution of the makefile.
-    
-    ... show                 : Show configuration.
-    ... dry-run MAKE-ARGS... : Run "make -n" to create ".make.dryrun" and ".make.environment".
-    ... dry-show             : Show compilation and cd commands.
-    ... chk-update           : Create "~/.commands.d/LANG" and "~/.environment.d/CHKSUM".
-    ... run COMMAND          : Execute COMMAND with "MAKE=make-h-tool".
-    ... MAKE-ARGS...         : make(1), dry-run(2), chk-update(3).
-    
-    Examples:
-    
-    > make-h-tool run ./build.sh build
-
 ## Collaborating
 
 For making bug reports, feature requests and donations visit
